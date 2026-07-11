@@ -30,10 +30,8 @@ services:
       POSTGRES_DSN: "postgres://tinode:tinode@db:5432/tinode?sslmode=disable"
       RESET_DB: "false"
       # --- message content encryption ----------------------------------------------
-      # Simple mode (one key, no rotation) is a single line:
-      #   TINODE_MSG_KEY: "<base64 key>"
-      # Below is the key-ring form (rotation-ready): one key per id + the current id.
-      # During a rotation you keep the old key here too (see ../README.md).
+      # Single key: just TINODE_MSG_KEY_1 (CURRENT defaults to the only key). To rotate
+      # later, add TINODE_MSG_KEY_2 and set TINODE_MSG_KEY_CURRENT=2 (see ../README.md).
       TINODE_MSG_KEY_1: "99J4Y6MVBBk8hI5V6Z6nWojy4qpgJJxIbjaF7eBwGoo="   # DEMO — replace
       TINODE_MSG_KEY_CURRENT: "1"
     ports:

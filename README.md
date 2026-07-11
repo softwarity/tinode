@@ -25,19 +25,21 @@
 >    | Mode | Environment | For |
 >    |------|-------------|-----|
 >    | **Off** | *(nothing set)* | no encryption — content in clear (stock Tinode) |
->    | **Single key** | `TINODE_MSG_KEY=<key>` | just encrypt content at rest, one key |
->    | **Key ring** | `TINODE_MSG_KEY_<id>=<key>` + `TINODE_MSG_KEY_CURRENT=<id>` | **zero-downtime key rotation** |
+>    | **Single key** | `TINODE_MSG_KEY_1=<key>` | just encrypt content at rest, one key |
+>    | **Key ring** | `TINODE_MSG_KEY_1`, `TINODE_MSG_KEY_2`, … + `TINODE_MSG_KEY_CURRENT=<id>` | **zero-downtime key rotation** |
 >
->    A key is `openssl rand -base64 32`; use a different one per deployment. Single
->    key is a ring of one, so you can adopt the ring later with **no data migration**
->    (a bare `TINODE_MSG_KEY`, and content with no id, are read as id `1`).
+>    A key is `openssl rand -base64 32`; use a different one per deployment. One
+>    consistent style — single key is just a ring of one (`CURRENT` defaults to the
+>    only key). The **same variables** configure the server and the re-key tool.
 >
 >    **Rotation & re-key.** Each encrypted message records its key id
 >    (`{"_enc":…,"k":"2"}`), so several keys coexist: new messages use the current
->    key, old ones stay readable via theirs. To retire an old key, the companion
->    image [`softwarity/tinode-postgres-rekey`](https://hub.docker.com/r/softwarity/tinode-postgres-rekey)
->    re-encrypts existing messages onto the current one — a one-shot k8s Job / Swarm
->    service, idempotent and resumable.
+>    key, old ones stay readable via theirs. To rotate you keep two keys (old + new)
+>    and move `CURRENT`; to then retire the old key, the companion image
+>    [`softwarity/tinode-postgres-rekey`](https://hub.docker.com/r/softwarity/tinode-postgres-rekey)
+>    re-encrypts every message onto the current key — same env, no extra flags (with
+>    two keys the source is simply the other one). A one-shot k8s Job / Swarm service,
+>    idempotent and resumable.
 >
 >    Scope is `messages.content` only; `head`, attachments and server-side search are
 >    not covered (encrypting content disables search). Full workflow and ready-to-use

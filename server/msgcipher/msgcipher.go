@@ -3,16 +3,17 @@
 // the PostgreSQL adapter (transparent encrypt on write / decrypt on read) and by the
 // re-key tool, so both produce byte-identical wrappers.
 //
-// Keys are read from the environment:
+// Keys are read from the environment — one consistent style, no aliases:
 //
 //	TINODE_MSG_KEY_<id> = base64 of a 32-byte key   (one per id, e.g. _1, _2)
-//	TINODE_MSG_KEY_CURRENT = <id>                    (which key encrypts new messages)
-//	TINODE_MSG_KEY = base64 of a 32-byte key         (alias for id "1", zero-config
-//	                                                  upgrade from the single-key image)
+//	TINODE_MSG_KEY_CURRENT = <id>                    (which key encrypts new messages;
+//	                                                  defaults to the only key when one)
+//
+// The same variables configure the server and the re-key tool.
 //
 // Stored format: {"_enc":"<base64(nonce|ciphertext|tag)>","k":"<id>"}. Content with
-// NO "k" is the old single-key format and is read as key id "1", so a single-key
-// deployment adopts the ring with no data migration. Legacy plaintext (no wrapper)
+// NO "k" predates key ids and is read as id "1", so messages written before this are
+// readable as long as key 1 is set — no data migration. Legacy plaintext (no wrapper)
 // always passes through untouched.
 package msgcipher
 
@@ -30,8 +31,8 @@ import (
 	"strings"
 )
 
-// DefaultKeyID is the id of content with no "k" field (old single-key format) and of
-// a bare TINODE_MSG_KEY.
+// DefaultKeyID is the id assigned to content with no "k" field (written before key
+// ids existed).
 const DefaultKeyID = "1"
 
 var (
@@ -56,9 +57,7 @@ func InitFromEnv() {
 
 	for _, env := range os.Environ() {
 		name, val, _ := strings.Cut(env, "=")
-		if name == "TINODE_MSG_KEY" {
-			addKey(DefaultKeyID, val)
-		} else if id, ok := strings.CutPrefix(name, "TINODE_MSG_KEY_"); ok && id != "CURRENT" {
+		if id, ok := strings.CutPrefix(name, "TINODE_MSG_KEY_"); ok && id != "CURRENT" {
 			addKey(id, val)
 		}
 	}

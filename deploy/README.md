@@ -37,11 +37,12 @@ Configuration is just environment variables, and there are three states:
 | Mode | Environment | Use it when |
 |------|-------------|-------------|
 | **Off** | *(no key set)* | you don't need encryption — content is stored in clear (stock Tinode) |
-| **Single key** | `TINODE_MSG_KEY=<key>` | you just want content encrypted at rest, one key, no rotation |
-| **Key ring** | `TINODE_MSG_KEY_<id>=<key>` (one per id) + `TINODE_MSG_KEY_CURRENT=<id>` | you want to be able to **rotate** keys without downtime |
+| **Single key** | `TINODE_MSG_KEY_1=<key>` | you just want content encrypted at rest, one key, no rotation |
+| **Key ring** | `TINODE_MSG_KEY_1`, `TINODE_MSG_KEY_2` + `TINODE_MSG_KEY_CURRENT=<id>` | you want to be able to **rotate** keys without downtime |
 
-**Single key** is the simple mode — one variable, done. You can adopt the ring later
-with no data migration (see below).
+One consistent style: keys are always numbered. **Single key** is just a ring of one —
+set `TINODE_MSG_KEY_1` and you're done (`CURRENT` defaults to the only key). The same
+variables configure the server and the re-key tool.
 
 ### The key ring (rotation mode)
 
@@ -52,15 +53,12 @@ TINODE_MSG_KEY_CURRENT=2           # the id that encrypts NEW messages
 ```
 
 Each encrypted message records the id that sealed it: `{"_enc":"…","k":"2"}`. On read,
-that id selects the key from the ring, so **many keys coexist**: new messages use the
-current key, older ones stay readable via theirs.
+that id selects the key from the ring, so keys coexist: new messages use the current
+key, older ones stay readable via theirs. In practice you hold **two** keys during a
+rotation (the old one and the new one) and one the rest of the time.
 
-The single-key mode is really just a ring of one, so upgrading from it is seamless:
-
-- A bare `TINODE_MSG_KEY` is treated as **id `1`** — start with the simple mode, and to
-  rotate later just add `TINODE_MSG_KEY_2` and `TINODE_MSG_KEY_CURRENT=2`.
-- Content written in single-key mode has **no `k`** and is read as **id `1`**, so there
-  is no data migration just to adopt the ring.
+Content written before key ids existed has **no `k`** and is read as **id `1`**, so
+messages already stored are readable as long as key 1 is set — no data migration.
 
 ## Rotating a key — the workflow
 
