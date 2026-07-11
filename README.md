@@ -54,7 +54,7 @@
 >
 > ```sh
 > docker pull softwarity/tinode-postgres-cipher:latest        # amd64 or arm64, auto
-> docker run --rm -e TINODE_MSG_KEY="$(openssl rand -base64 32)" \
+> docker run --rm -e TINODE_MSG_KEY_1="$(openssl rand -base64 32)" \
 >   softwarity/tinode-postgres-cipher:latest                  # + your DB env
 > ```
 >
