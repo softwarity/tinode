@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: Compile server + init-db (postgres adapter)
+        run: go build -tags postgres ./server ./tinode-db
+      - name: Cipher unit tests
+        run: |
+          export TINODE_MSG_KEY=$(head -c 32 /dev/urandom | base64)
+          go test -tags postgres -run TestCipher -v ./server/db/postgres/
+
+  image:
+    name: Build & publish image
+    needs: test
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/_docker.yml
+    secrets: inherit

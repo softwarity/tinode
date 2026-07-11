@@ -1,0 +1,16 @@
+name: Docker release
+
+# Triggered by version tags created by the Release workflow: build and publish the
+# released image (semver tags + latest) via the shared multi-arch workflow.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: Build & publish image
+    uses: ./.github/workflows/_docker.yml
+    secrets: inherit

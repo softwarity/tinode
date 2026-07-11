@@ -1,0 +1,29 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version part to bump
+        type: choice
+        required: true
+        default: patch
+        options: [patch, minor, major]
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # Persist the PAT so release-flow's tag push carries it (→ triggers docker-release.yml).
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Release
+        uses: softwarity/release-flow@v1
+        with:
+          bump: ${{ inputs.bump }}
+          # This is a fork: the version lives in the git tags, not in a manifest.
