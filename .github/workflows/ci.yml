@@ -14,16 +14,31 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
-      - name: Compile server + init-db (postgres adapter)
-        run: go build -tags postgres ./server ./tinode-db
-      - name: Cipher unit tests
+      - name: Compile server, init-db, rekey
         run: |
-          export TINODE_MSG_KEY=$(head -c 32 /dev/urandom | base64)
-          go test -tags postgres -run TestCipher -v ./server/db/postgres/
+          go build -tags postgres ./server ./tinode-db
+          go build ./tinode-rekey
+      - name: Cipher unit tests
+        run: go test ./server/msgcipher/ -v
 
-  image:
-    name: Build & publish image
+  cipher-image:
+    name: Image · cipher
     needs: test
     if: github.event_name == 'push'
     uses: ./.github/workflows/_docker.yml
+    with:
+      image: docker.io/softwarity/tinode-postgres-cipher
+      file: Dockerfile
+      slug: cipher
+    secrets: inherit
+
+  rekey-image:
+    name: Image · rekey
+    needs: test
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/_docker.yml
+    with:
+      image: docker.io/softwarity/tinode-postgres-rekey
+      file: tinode-rekey/Dockerfile
+      slug: rekey
     secrets: inherit

@@ -1,7 +1,7 @@
 name: Docker release
 
-# Triggered by version tags created by the Release workflow: build and publish the
-# released image (semver tags + latest) via the shared multi-arch workflow.
+# Triggered by version tags created by the Release workflow: build and publish both
+# released images (semver tags + latest) via the shared multi-arch workflow.
 on:
   push:
     tags: ["v*"]
@@ -10,7 +10,20 @@ permissions:
   contents: read
 
 jobs:
-  image:
-    name: Build & publish image
+  cipher-image:
+    name: Image · cipher
     uses: ./.github/workflows/_docker.yml
+    with:
+      image: docker.io/softwarity/tinode-postgres-cipher
+      file: Dockerfile
+      slug: cipher
+    secrets: inherit
+
+  rekey-image:
+    name: Image · rekey
+    uses: ./.github/workflows/_docker.yml
+    with:
+      image: docker.io/softwarity/tinode-postgres-rekey
+      file: tinode-rekey/Dockerfile
+      slug: rekey
     secrets: inherit
