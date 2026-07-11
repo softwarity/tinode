@@ -18,23 +18,30 @@
 > other behavioural change. Published multi-arch (amd64 · arm64) to Docker Hub as
 > [`softwarity/tinode-postgres-cipher`](https://hub.docker.com/r/softwarity/tinode-postgres-cipher).
 >
-> 1. **Message content encryption at rest.** When the environment variable
->    `TINODE_MSG_KEY` is set to the base64 of a 32-byte key, `messages.content` is
->    stored AES-256-GCM encrypted and transparently decrypted on read. When the
->    variable is unset, content is stored in clear (upstream behaviour). Legacy
->    plaintext messages stay readable — no migration. Scope is `messages.content`
->    only; `head`, attachments and server-side search are not covered (encrypting
->    content disables search). See `server/db/postgres/cipher.go`.
+> 1. **Message content encryption at rest.** `messages.content` is stored
+>    AES-256-GCM encrypted and transparently decrypted on read. Configured entirely
+>    by environment variables — three modes:
 >
->    Generate a key: `openssl rand -base64 32`. Use a **different key per
->    deployment**; losing the key makes the encrypted messages unreadable.
+>    | Mode | Environment | For |
+>    |------|-------------|-----|
+>    | **Off** | *(nothing set)* | no encryption — content in clear (stock Tinode) |
+>    | **Single key** | `TINODE_MSG_KEY=<key>` | just encrypt content at rest, one key |
+>    | **Key ring** | `TINODE_MSG_KEY_<id>=<key>` + `TINODE_MSG_KEY_CURRENT=<id>` | **zero-downtime key rotation** |
 >
->    Keys form a ring for **zero-downtime rotation**: `TINODE_MSG_KEY_<id>` +
->    `TINODE_MSG_KEY_CURRENT`, with the id recorded per message (`{"_enc":…,"k":"2"}`).
->    Rotating is a config change; the companion image
->    [`softwarity/tinode-postgres-rekey`](https://hub.docker.com/r/softwarity/tinode-postgres-rekey)
->    re-encrypts existing messages onto a new key. Full workflow and ready-to-use
->    Compose/Swarm and Helm recipes: **[deploy/](deploy/)**.
+>    A key is `openssl rand -base64 32`; use a different one per deployment. Single
+>    key is a ring of one, so you can adopt the ring later with **no data migration**
+>    (a bare `TINODE_MSG_KEY`, and content with no id, are read as id `1`).
+>
+>    **Rotation & re-key.** Each encrypted message records its key id
+>    (`{"_enc":…,"k":"2"}`), so several keys coexist: new messages use the current
+>    key, old ones stay readable via theirs. To retire an old key, the companion
+>    image [`softwarity/tinode-postgres-rekey`](https://hub.docker.com/r/softwarity/tinode-postgres-rekey)
+>    re-encrypts existing messages onto the current one — a one-shot k8s Job / Swarm
+>    service, idempotent and resumable.
+>
+>    Scope is `messages.content` only; `head`, attachments and server-side search are
+>    not covered (encrypting content disables search). Full workflow and ready-to-use
+>    Compose/Swarm and Helm recipes: **[deploy/](deploy/)**. See `server/msgcipher`.
 >
 > 2. **Built from source into a PostgreSQL-only, multi-arch image.** The `Dockerfile`
 >    cross-compiles `tinode` and `init-db` with `-tags postgres` for both `amd64` and
