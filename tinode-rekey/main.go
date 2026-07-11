@@ -1,8 +1,10 @@
-// Command tinode-rekey re-encrypts stored message content onto the current key of
-// the msgcipher key ring. It is the "retire an old key" step of a rotation: after
-// you add a new key and point TINODE_MSG_KEY_CURRENT at it, run this once (a k8s Job
-// or a Swarm one-shot service) so every message ends up on the new key; then you can
-// drop the old key from the secret.
+// Command tinode-rekey brings all stored message content onto the current key of the
+// msgcipher key ring: content encrypted under another key is re-encrypted, and content
+// still in clear (from before encryption was enabled) gets encrypted. It is the
+// "retire an old key" / "encrypt the backlog" step: after you add a key and point
+// TINODE_MSG_KEY_CURRENT at it, run this once (a k8s Job or a Swarm one-shot service)
+// so every message ends up sealed under the current key; then you can drop any old key
+// from the secret.
 //
 // It reads the same key ring as the server (TINODE_MSG_KEY_* env). The database is
 // given either as a full URL in TINODE_REKEY_DSN, or — when that is empty — via the
@@ -61,20 +63,22 @@ func main() {
 // when migration is incomplete, so it doubles as a gate in scripts/CI before the old
 // key is removed.
 func mustStatus(ctx context.Context, conn *pgx.Conn, cur string) {
-	var encrypted, onCurrent, remaining int64
+	var onCurrent, otherKey, plaintext int64
 	err := conn.QueryRow(ctx, `
 		SELECT
-		  count(*) FILTER (WHERE content::jsonb ? '_enc'),
 		  count(*) FILTER (WHERE content::jsonb ? '_enc' AND coalesce(content::jsonb->>'k','1') =  $1),
-		  count(*) FILTER (WHERE content::jsonb ? '_enc' AND coalesce(content::jsonb->>'k','1') <> $1)
-		FROM messages WHERE content IS NOT NULL`, cur).Scan(&encrypted, &onCurrent, &remaining)
+		  count(*) FILTER (WHERE content::jsonb ? '_enc' AND coalesce(content::jsonb->>'k','1') <> $1),
+		  count(*) FILTER (WHERE NOT content::jsonb ? '_enc')
+		FROM messages WHERE content IS NOT NULL`, cur).Scan(&onCurrent, &otherKey, &plaintext)
 	if err != nil {
 		log.Fatalln("rekey: status query failed:", err)
 	}
-	fmt.Printf("current key id : %s\n", cur)
-	fmt.Printf("encrypted rows : %d\n", encrypted)
-	fmt.Printf("on current key : %d\n", onCurrent)
-	fmt.Printf("to re-encrypt  : %d\n", remaining)
+	remaining := otherKey + plaintext
+	fmt.Printf("current key id     : %s\n", cur)
+	fmt.Printf("on current key     : %d\n", onCurrent)
+	fmt.Printf("on another key     : %d\n", otherKey)
+	fmt.Printf("still in clear     : %d\n", plaintext)
+	fmt.Printf("to bring on current: %d\n", remaining)
 	if remaining > 0 {
 		os.Exit(1) // not done — do not drop the old key yet
 	}
@@ -107,9 +111,12 @@ func rekey(ctx context.Context, conn *pgx.Conn, cur string, batch int, dryRun bo
 			lastID = id
 			n++
 			scanned++
-			if !msgcipher.IsEncrypted(content) || msgcipher.KeyID(content) == cur {
-				continue // plaintext, or already on the current key
+			if msgcipher.IsEncrypted(content) && msgcipher.KeyID(content) == cur {
+				continue // already sealed under the current key
 			}
+			// Everything else is brought onto the current key: content encrypted under
+			// another key is re-encrypted, and content still in clear (from before
+			// encryption was enabled) gets encrypted.
 			todo = append(todo, job{id, content})
 		}
 		rows.Close()

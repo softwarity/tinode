@@ -39,7 +39,9 @@
 >       → new messages use it, old ones still readable.
 >    2. **Re-encrypt** the rest onto it with a one-shot Job/service —
 >       [`softwarity/tinode-postgres-rekey`](https://hub.docker.com/r/softwarity/tinode-postgres-rekey)
->       (same env, no flags; idempotent, resumable).
+>       (same env, no flags; idempotent, resumable). It brings *every* message onto the
+>       current key — including any still in clear, so it also encrypts the backlog when
+>       you first enable encryption on an existing database.
 >    3. **Check** it is done: `tinode-rekey -status` → `to re-encrypt: 0`.
 >    4. **Drop** the old key, roll the pods.
 >

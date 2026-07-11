@@ -60,6 +60,17 @@ rotation (the old one and the new one) and one the rest of the time.
 Content written before key ids existed has **no `k`** and is read as **id `1`**, so
 messages already stored are readable as long as key 1 is set — no data migration.
 
+### Turning encryption on for an existing (plaintext) database
+
+Enabling a key only encrypts **new** messages; the existing plaintext stays in clear
+and readable. To encrypt the backlog too, run the re-key once — it brings **every**
+message onto the current key, encrypting whatever is still in clear:
+
+```sh
+tinode-rekey -status   # "still in clear: N"
+tinode-rekey           # encrypts them; then -status shows 0
+```
+
 ## Rotating a key — the workflow
 
 The reason the ring and the re-key tool exist: change the key without downtime, and —
