@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://www.softwarity.io"><img src="https://www.softwarity.io/img/softwarity.svg" alt="Softwarity" width="200"/></a>
+</p>
+
 # Tinode Instant Messaging Server
 
 [![docker](https://img.shields.io/docker/v/softwarity/tinode-postgres-cipher?sort=semver&label=docker)](https://hub.docker.com/r/softwarity/tinode-postgres-cipher)
