@@ -4,10 +4,13 @@
 // or a Swarm one-shot service) so every message ends up on the new key; then you can
 // drop the old key from the secret.
 //
-// It reads the same key ring as the server (TINODE_MSG_KEY_* env) plus a Postgres
-// DSN in TINODE_REKEY_DSN. It is idempotent (rows already on the current key are
-// skipped) and resumable (just run it again after a crash). The live server may keep
-// serving throughout: it only ever writes current-key content, which this tool skips.
+// It reads the same key ring as the server (TINODE_MSG_KEY_* env). The database is
+// given either as a full URL in TINODE_REKEY_DSN, or — when that is empty — via the
+// standard libpq variables PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE /
+// PGSSLMODE (handy in Kubernetes, where PGPASSWORD comes from a Secret). It is
+// idempotent (rows already on the current key are skipped) and resumable (just run it
+// again after a crash). The live server may keep serving throughout: it only ever
+// writes current-key content, which this tool skips.
 //
 //	-status   report how many messages remain to migrate, then exit (no writes)
 //	-batch N  rows read per round (default 500)
@@ -36,15 +39,13 @@ func main() {
 	if !msgcipher.Enabled() {
 		log.Fatalln("rekey: no current key — set TINODE_MSG_KEY_* and TINODE_MSG_KEY_CURRENT")
 	}
+	// Empty DSN → pgx falls back to the libpq PG* environment variables.
 	dsn := os.Getenv("TINODE_REKEY_DSN")
-	if dsn == "" {
-		log.Fatalln("rekey: TINODE_REKEY_DSN is required (postgres:// URL to the tinode database)")
-	}
 
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, dsn)
 	if err != nil {
-		log.Fatalln("rekey: cannot connect:", err)
+		log.Fatalln("rekey: cannot connect (set TINODE_REKEY_DSN or PGHOST/PGUSER/PGPASSWORD/PGDATABASE):", err)
 	}
 	defer conn.Close(ctx)
 
