@@ -1,9 +1,18 @@
 # Tinode Instant Messaging Server
 
+[![docker](https://img.shields.io/docker/v/softwarity/tinode-postgres-cipher?sort=semver&label=docker)](https://hub.docker.com/r/softwarity/tinode-postgres-cipher)
+[![docker pulls](https://img.shields.io/docker/pulls/softwarity/tinode-postgres-cipher)](https://hub.docker.com/r/softwarity/tinode-postgres-cipher)
+[![image size](https://img.shields.io/docker/image-size/softwarity/tinode-postgres-cipher/latest)](https://hub.docker.com/r/softwarity/tinode-postgres-cipher/tags)
+[![arch](https://img.shields.io/badge/arch-amd64%20·%20arm64-brightgreen)](https://hub.docker.com/r/softwarity/tinode-postgres-cipher/tags)
+[![encryption](https://img.shields.io/badge/content%20at%20rest-AES--256--GCM-blue)](server/db/postgres/cipher.go)
+[![license](https://img.shields.io/github/license/softwarity/tinode)](LICENSE)
+[![CI](https://github.com/softwarity/tinode/actions/workflows/ci.yml/badge.svg)](https://github.com/softwarity/tinode/actions/workflows/ci.yml)
+
 > **Softwarity fork — `tinode-postgres-cipher`**
 >
 > This is a fork of upstream Tinode pinned to **v0.25.3**, with two additions and no
-> other behavioural change:
+> other behavioural change. Published multi-arch (amd64 · arm64) to Docker Hub as
+> [`softwarity/tinode-postgres-cipher`](https://hub.docker.com/r/softwarity/tinode-postgres-cipher).
 >
 > 1. **Message content encryption at rest.** When the environment variable
 >    `TINODE_MSG_KEY` is set to the base64 of a 32-byte key, `messages.content` is
@@ -16,10 +25,18 @@
 >    Generate a key: `openssl rand -base64 32`. Use a **different key per
 >    deployment**; losing the key makes the encrypted messages unreadable.
 >
-> 2. **Built from source into a PostgreSQL-only image.** The `Dockerfile` compiles
->    `tinode` and `init-db` with `-tags postgres` and drops them into the official
->    runtime image, so the webapp, config template and entrypoint stay upstream.
->    Published by CI as `ghcr.io/softwarity/tinode-postgres-cipher`.
+> 2. **Built from source into a PostgreSQL-only, multi-arch image.** The `Dockerfile`
+>    cross-compiles `tinode` and `init-db` with `-tags postgres` for both `amd64` and
+>    `arm64`, and assembles them onto a multi-arch alpine runtime with the upstream
+>    webapp, entrypoint and config. CI publishes the manifest list to Docker Hub.
+>
+> **Pull / run:**
+>
+> ```sh
+> docker pull softwarity/tinode-postgres-cipher:latest        # amd64 or arm64, auto
+> docker run --rm -e TINODE_MSG_KEY="$(openssl rand -base64 32)" \
+>   softwarity/tinode-postgres-cipher:latest                  # + your DB env
+> ```
 >
 > Everything below is upstream documentation.
 
