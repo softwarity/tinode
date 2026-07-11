@@ -60,6 +60,12 @@ rotation (the old one and the new one) and one the rest of the time.
 Content written before key ids existed has **no `k`** and is read as **id `1`**, so
 messages already stored are readable as long as key 1 is set — no data migration.
 
+> ⚠️ **`TINODE_MSG_KEY_CURRENT` must name a key that is actually set** (non-empty). If
+> it points to a missing or empty key, the server logs
+> `encryption DISABLED (decryption still works)` and stores **new content in clear** —
+> it does *not* fail to start. Check that log line after changing keys. Likewise, a key
+> whose value is empty is ignored (not added to the ring).
+
 ### Turning encryption on for an existing (plaintext) database
 
 Enabling a key only encrypts **new** messages; the existing plaintext stays in clear

@@ -32,6 +32,10 @@
 >    consistent style — single key is just a ring of one (`CURRENT` defaults to the
 >    only key). The **same variables** configure the server and the re-key tool.
 >
+>    > ⚠️ `TINODE_MSG_KEY_CURRENT` must name a key that is actually set; if it points to
+>    > a missing/empty key the server logs `encryption DISABLED` and stores new content
+>    > **in clear** (it does not fail to start) — check that log after changing keys.
+>
 >    **Rotating a key** (zero downtime). Each message records its key id
 >    (`{"_enc":…,"k":"2"}`), so keys coexist. Four steps:
 >
