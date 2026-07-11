@@ -2619,7 +2619,7 @@ func (a *adapter) MessageSave(msg *t.Message) error {
 	err := a.db.QueryRow(ctx,
 		`INSERT INTO messages(createdAt,updatedAt,seqid,topic,"from",head,content) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
 		msg.CreatedAt, msg.UpdatedAt, msg.SeqId, msg.Topic,
-		store.DecodeUid(t.ParseUid(msg.From)), msg.Head, common.ToJSON(msg.Content)).Scan(&id)
+		store.DecodeUid(t.ParseUid(msg.From)), msg.Head, encodeContent(common.ToJSON(msg.Content))).Scan(&id)
 	if err == nil {
 		// Replacing ID given by store by ID given by the DB.
 		msg.SetUid(t.Uid(id))
@@ -2680,10 +2680,12 @@ func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) (
 	for rows.Next() {
 		var msg t.Message
 		var from int64
+		var content []byte // raw JSON: decrypted (or passed through) by decodeContent
 		if err = rows.Scan(&msg.CreatedAt, &msg.UpdatedAt, &msg.DeletedAt, &msg.DelId, &msg.SeqId,
-			&msg.Topic, &from, &msg.Head, &msg.Content); err != nil {
+			&msg.Topic, &from, &msg.Head, &content); err != nil {
 			break
 		}
+		msg.Content = decodeContent(content)
 		msg.From = store.EncodeUid(from).String()
 		msgs = append(msgs, msg)
 	}
