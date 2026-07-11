@@ -15,9 +15,10 @@ jobs:
         with:
           go-version: stable
       - name: Compile server, init-db, rekey
-        run: |
-          go build -tags postgres ./server ./tinode-db
-          go build ./tinode-rekey
+        # Multiple packages → go build only checks they compile (no binaries written,
+        # so no clash with the ./tinode-rekey directory name). The postgres tag is a
+        # no-op for the untagged rekey/msgcipher packages.
+        run: go build -tags postgres ./server ./tinode-db ./tinode-rekey
       - name: Cipher unit tests
         run: go test ./server/msgcipher/ -v
 
