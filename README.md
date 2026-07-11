@@ -32,18 +32,25 @@
 >    consistent style — single key is just a ring of one (`CURRENT` defaults to the
 >    only key). The **same variables** configure the server and the re-key tool.
 >
->    **Rotation & re-key.** Each encrypted message records its key id
->    (`{"_enc":…,"k":"2"}`), so several keys coexist: new messages use the current
->    key, old ones stay readable via theirs. To rotate you keep two keys (old + new)
->    and move `CURRENT`; to then retire the old key, the companion image
->    [`softwarity/tinode-postgres-rekey`](https://hub.docker.com/r/softwarity/tinode-postgres-rekey)
->    re-encrypts every message onto the current key — same env, no extra flags (with
->    two keys the source is simply the other one). A one-shot k8s Job / Swarm service,
->    idempotent and resumable.
+>    **Rotating a key** (zero downtime). Each message records its key id
+>    (`{"_enc":…,"k":"2"}`), so keys coexist. Four steps:
+>
+>    1. **Add** the new key + point `CURRENT` at it (keep the old key), roll the pods
+>       → new messages use it, old ones still readable.
+>    2. **Re-encrypt** the rest onto it with a one-shot Job/service —
+>       [`softwarity/tinode-postgres-rekey`](https://hub.docker.com/r/softwarity/tinode-postgres-rekey)
+>       (same env, no flags; idempotent, resumable).
+>    3. **Check** it is done: `tinode-rekey -status` → `to re-encrypt: 0`.
+>    4. **Drop** the old key, roll the pods.
+>
+>    > ⚠️ Never drop the old key before step 3 reads `0` — remaining messages on it
+>    > would become unreadable.
+>
+>    **→ Full workflow (states 0→4) and ready-to-use Compose/Swarm & Helm recipes:
+>    [deploy/](deploy/).**
 >
 >    Scope is `messages.content` only; `head`, attachments and server-side search are
->    not covered (encrypting content disables search). Full workflow and ready-to-use
->    Compose/Swarm and Helm recipes: **[deploy/](deploy/)**. See `server/msgcipher`.
+>    not covered (encrypting content disables search). Code: `server/msgcipher`.
 >
 > 2. **Built from source into a PostgreSQL-only, multi-arch image.** The `Dockerfile`
 >    cross-compiles `tinode` and `init-db` with `-tags postgres` for both `amd64` and
