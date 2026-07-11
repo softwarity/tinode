@@ -28,12 +28,22 @@ A key is 32 random bytes, base64-encoded:
 openssl rand -base64 32
 ```
 
-Use a **different key per deployment**. Encryption is enabled purely by the presence
-of a key — no key means content is stored in clear (stock Tinode behaviour).
+Use a **different key per deployment**.
 
-## The key ring
+## Two modes (plus off)
 
-Keys are given ids. The server reads them from the environment:
+Configuration is just environment variables, and there are three states:
+
+| Mode | Environment | Use it when |
+|------|-------------|-------------|
+| **Off** | *(no key set)* | you don't need encryption — content is stored in clear (stock Tinode) |
+| **Single key** | `TINODE_MSG_KEY=<key>` | you just want content encrypted at rest, one key, no rotation |
+| **Key ring** | `TINODE_MSG_KEY_<id>=<key>` (one per id) + `TINODE_MSG_KEY_CURRENT=<id>` | you want to be able to **rotate** keys without downtime |
+
+**Single key** is the simple mode — one variable, done. You can adopt the ring later
+with no data migration (see below).
+
+### The key ring (rotation mode)
 
 ```
 TINODE_MSG_KEY_1=<base64 key>      # a key, by id
@@ -42,15 +52,15 @@ TINODE_MSG_KEY_CURRENT=2           # the id that encrypts NEW messages
 ```
 
 Each encrypted message records the id that sealed it: `{"_enc":"…","k":"2"}`. On read,
-that id selects the key from the ring. So **many keys can coexist**: new messages use
-the current key, older ones stay readable via theirs.
+that id selects the key from the ring, so **many keys coexist**: new messages use the
+current key, older ones stay readable via theirs.
 
-Two compatibility rules keep upgrades painless:
+The single-key mode is really just a ring of one, so upgrading from it is seamless:
 
-- A bare `TINODE_MSG_KEY` (no id) is treated as **id `1`** — the single-key image
-  upgrades with no config change.
-- Content with **no `k`** (written by the single-key image) is read as **id `1`**, so
-  there is no data migration just to adopt the ring.
+- A bare `TINODE_MSG_KEY` is treated as **id `1`** — start with the simple mode, and to
+  rotate later just add `TINODE_MSG_KEY_2` and `TINODE_MSG_KEY_CURRENT=2`.
+- Content written in single-key mode has **no `k`** and is read as **id `1`**, so there
+  is no data migration just to adopt the ring.
 
 ## Rotating a key — the workflow
 
