@@ -29,6 +29,13 @@
 >    Generate a key: `openssl rand -base64 32`. Use a **different key per
 >    deployment**; losing the key makes the encrypted messages unreadable.
 >
+>    Keys form a ring for **zero-downtime rotation**: `TINODE_MSG_KEY_<id>` +
+>    `TINODE_MSG_KEY_CURRENT`, with the id recorded per message (`{"_enc":…,"k":"2"}`).
+>    Rotating is a config change; the companion image
+>    [`softwarity/tinode-postgres-rekey`](https://hub.docker.com/r/softwarity/tinode-postgres-rekey)
+>    re-encrypts existing messages onto a new key. Full workflow and ready-to-use
+>    Compose/Swarm and Helm recipes: **[deploy/](deploy/)**.
+>
 > 2. **Built from source into a PostgreSQL-only, multi-arch image.** The `Dockerfile`
 >    cross-compiles `tinode` and `init-db` with `-tags postgres` for both `amd64` and
 >    `arm64`, and assembles them onto a multi-arch alpine runtime with the upstream

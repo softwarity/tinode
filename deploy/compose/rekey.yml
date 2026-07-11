@@ -1,0 +1,32 @@
+# One-shot re-encryption of all stored messages onto the current key. Run this after
+# you have added a new key and moved TINODE_MSG_KEY_CURRENT to it (state 3 of the
+# rotation in ../README.md). It must see the SAME key ring as the server, including
+# the OLD key, so it can decrypt what it re-encrypts.
+#
+# Docker Compose (run once, then it exits):
+#   docker compose -f docker-compose.yml -f rekey.yml run --rm rekey            # migrate
+#   docker compose -f docker-compose.yml -f rekey.yml run --rm rekey -status    # check
+#
+# Docker Swarm (no `run`; use a one-shot service, then remove it):
+#   docker service create --name tinode-rekey --network <stack>_default \
+#     --restart-condition none \
+#     -e TINODE_REKEY_DSN=postgres://tinode:tinode@db:5432/tinode?sslmode=disable \
+#     -e TINODE_MSG_KEY_1=<old> -e TINODE_MSG_KEY_2=<new> -e TINODE_MSG_KEY_CURRENT=2 \
+#     softwarity/tinode-postgres-rekey:latest
+#   docker service logs -f tinode-rekey     # wait for "rekey done ... 0 failed"
+#   docker service rm tinode-rekey
+
+services:
+  rekey:
+    image: softwarity/tinode-postgres-rekey:latest
+    profiles: ["rekey"]          # never started by `up`; only via `run`
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TINODE_REKEY_DSN: "postgres://tinode:tinode@db:5432/tinode?sslmode=disable"
+      # Mirror the server's ring. Example mid-rotation (old key 1 + new key 2):
+      TINODE_MSG_KEY_1: "99J4Y6MVBBk8hI5V6Z6nWojy4qpgJJxIbjaF7eBwGoo="   # DEMO old
+      TINODE_MSG_KEY_2: "51OACsy54az7xHJIHBYjjPMZX1RwC671M/J++NI26Bc="   # DEMO new
+      TINODE_MSG_KEY_CURRENT: "2"

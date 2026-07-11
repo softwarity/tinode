@@ -1,0 +1,31 @@
+{{- if .Values.rekey.enabled }}
+# On-demand re-encryption of all messages onto the current key. Enable with
+#   helm upgrade ... --set rekey.enabled=true
+# watch it (`kubectl logs -f job/...`), confirm it completes, then set it back to
+# false. The name carries the current key id so rotating to a new id later creates a
+# fresh Job instead of clashing with a finished one. Single pod ⇒ no locking needed;
+# idempotent ⇒ safe to re-run; the live server keeps serving throughout.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "tinode.fullname" . }}-rekey-{{ .Values.cipher.current }}
+  labels:
+    {{- include "tinode.labels" . | nindent 4 }}
+spec:
+  backoffLimit: {{ .Values.rekey.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.rekey.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        {{- include "tinode.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: rekey
+          image: "{{ .Values.rekeyImage.repository }}:{{ .Values.rekeyImage.tag }}"
+          # No args → migrate. TINODE_REKEY_DSN + the whole key ring come from the
+          # Secret, so the Job sees the old key(s) it needs to decrypt.
+          envFrom:
+            - secretRef:
+                name: {{ include "tinode.fullname" . }}-keys
+{{- end }}

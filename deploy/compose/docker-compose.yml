@@ -1,0 +1,44 @@
+# Minimal Docker / Swarm deployment of softwarity/tinode-postgres-cipher with
+# message-content encryption at rest. See ../README.md for the rotation workflow.
+#
+# The DEMO keys below are for local testing only — generate your own:
+#   openssl rand -base64 32
+# and keep them in a secret, not in this file, for anything real.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tinode
+      POSTGRES_PASSWORD: tinode
+      POSTGRES_DB: tinode
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tinode"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  tinode:
+    image: softwarity/tinode-postgres-cipher:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database (the image renders its config from POSTGRES_DSN).
+      POSTGRES_DSN: "postgres://tinode:tinode@db:5432/tinode?sslmode=disable"
+      RESET_DB: "false"
+      # --- message content encryption: the key ring -------------------------------
+      # One key per id; TINODE_MSG_KEY_CURRENT selects the one that encrypts new
+      # messages. During a rotation you keep the old key here too (see ../README.md).
+      TINODE_MSG_KEY_1: "99J4Y6MVBBk8hI5V6Z6nWojy4qpgJJxIbjaF7eBwGoo="   # DEMO — replace
+      TINODE_MSG_KEY_CURRENT: "1"
+    ports:
+      - "6060:6060"
+    volumes:
+      - uploads:/opt/tinode/uploads   # persist uploaded media
+
+volumes:
+  db:
+  uploads:

@@ -1,0 +1,39 @@
+image:
+  repository: softwarity/tinode-postgres-cipher
+  tag: latest
+  pullPolicy: IfNotPresent
+
+rekeyImage:
+  repository: softwarity/tinode-postgres-rekey
+  tag: latest
+
+# Postgres the server and the re-key Job connect to. Holds a password, so it is
+# rendered into the Secret.
+postgres:
+  dsn: "postgres://tinode:tinode@postgres:5432/tinode?sslmode=disable"
+
+# Message-content encryption key ring.
+#   keys:    id -> base64 of a 32-byte key (openssl rand -base64 32)
+#   current: id whose key encrypts NEW messages
+# Leave keys empty to disable encryption (content stored in clear).
+# During a rotation keep BOTH the old and the new key here; see ../../README.md.
+cipher:
+  current: "1"
+  keys: {}
+    # "1": "REPLACE_WITH_base64_32_bytes"
+    # "2": "REPLACE_WITH_base64_32_bytes"
+
+# On-demand re-key Job. Set enabled=true for a migration (helm upgrade), watch it to
+# completion, then set it back to false. The Job name carries the current key id, so a
+# later rotation to a new id creates a fresh Job rather than colliding with this one.
+rekey:
+  enabled: false
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 3600
+
+service:
+  type: ClusterIP
+  port: 6060
+
+resources: {}
+replicaCount: 1
